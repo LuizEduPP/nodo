@@ -51,7 +51,7 @@ Store: `$XDG_DATA_HOME/nodo`, `%LOCALAPPDATA%/nodo`, or `~/.local/share/nodo`.
 
 Everyone can contribute. Code, docs, issues, reviews, and machines on other networks all count. Git keeps your name on the commits. The [contributors](https://github.com/LuizEduPP/nodo/graphs/contributors) list names everyone who landed work.
 
-[Issues](https://github.com/LuizEduPP/nodo/issues) · [Pull requests](https://github.com/LuizEduPP/nodo/pulls)
+[Issues](https://github.com/LuizEduPP/nodo/issues) · [Discussions](https://github.com/LuizEduPP/nodo/discussions) · [Pull requests](https://github.com/LuizEduPP/nodo/pulls)
 
 [Luiz Eduardo](https://github.com/LuizEduPP) started the repository. Contributors keep their own credit.
 
