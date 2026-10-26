@@ -90,8 +90,6 @@ Every `join()` publication uses the same capability id: UUID version 7 derived f
 
 Details: [Session](session.md).
 
-`nodo.pack` can write a Llama slice (`CODE=1`). `join()` never publishes or loads that slice.
-
 ## Reading order
 
 1. This page — product, store, one-page generation.
@@ -119,6 +117,5 @@ Details: [Session](session.md).
 | `association` / `record` | handshake and sequenced AEAD |
 | `access` | lock and mailbox |
 | `measure` | RAM/VRAM and `cap` |
-| `pack` | optional Llama writer, unused by `join()` |
 
 **nodo** · [Flow](flow.md) · [Network](network.md) · [Model](model.md) · [Session](session.md) · [Protocol](protocol.md)

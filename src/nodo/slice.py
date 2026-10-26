@@ -8,18 +8,13 @@ from typing import Any, BinaryIO
 import numpy as np
 
 from nodo.domain import (
-    CODE,
     CODE_MODEL,
     HEAD_CHUNK,
     HEADER,
     KIND_BANK,
-    KIND_COMPLETE,
     KIND_EMBED,
     KIND_HEAD,
-    KIND_STACK,
     KINDS,
-    RMS,
-    ROPE,
     SLICE_MAGIC,
 )
 
@@ -74,11 +69,11 @@ def header(
     weights: int,
     rms: float,
     rope: float,
-    code: int = CODE,
+    code: int = CODE_MODEL,
 ) -> bytes:
     if rms <= 0 or rope <= 0:
         raise ValueError("slice")
-    if code not in {CODE, CODE_MODEL} or kind not in KINDS:
+    if code != CODE_MODEL or kind not in KINDS:
         raise ValueError("slice")
     return (
         SLICE_MAGIC
@@ -104,7 +99,7 @@ def header_from(meta: dict[str, Any], **over: Any) -> bytes:
         fields["weights"],
         fields["rms"],
         fields["rope"],
-        fields.get("code", CODE),
+        fields.get("code", CODE_MODEL),
     )
 
 
@@ -112,9 +107,7 @@ def inspect(data: bytes) -> dict[str, Any] | None:
     if len(data) < HEADER or data[:6] != SLICE_MAGIC:
         return None
     code, kind = data[6], data[7]
-    if code not in {CODE, CODE_MODEL} or kind not in KINDS:
-        return None
-    if code == CODE and kind == KIND_BANK:
+    if code != CODE_MODEL or kind not in KINDS:
         return None
     hidden, vocab, layers, heads, kv, dim, ff = _get32(data, 8, 7)
     rms = struct.unpack(">f", data[36:40])[0]
@@ -124,7 +117,7 @@ def inspect(data: bytes) -> dict[str, Any] | None:
         return None
     if heads * dim != hidden or heads % kv != 0:
         return None
-    if layers < 0 or (kind == KIND_STACK and layers < 1):
+    if layers < 0:
         return None
     if layers > 0 and ff < 1:
         return None
@@ -173,29 +166,6 @@ def width_of(meta: dict[str, Any]) -> int:
     return meta["hidden"] * 2
 
 
-def layer_octets(hidden: int, kv: int, dim: int, ff: int) -> int:
-    wide = kv * dim
-    return 2 * (
-        hidden
-        + hidden * hidden
-        + hidden * wide
-        + hidden * wide
-        + hidden * hidden
-        + hidden
-        + hidden * ff
-        + ff * hidden
-        + hidden * ff
-    )
-
-
-def embed_octets(vocab: int, hidden: int) -> int:
-    return 2 * vocab * hidden
-
-
-def head_octets(vocab: int, hidden: int) -> int:
-    return 2 * hidden + embed_octets(vocab, hidden)
-
-
 def state_octets(layers: int, span: int, kv: int, dim: int) -> int:
     return 4 + layers * 2 * span * kv * dim * 2
 
@@ -225,60 +195,6 @@ def fit_span(meta: dict[str, Any], budget: int, ceiling: int) -> int | None:
     return span if span >= 1 else None
 
 
-def split_layers(total: int, count: int) -> list[tuple[int, int]] | None:
-    if count < 1 or total < 0 or count > total + 2:
-        return None
-    if count == 1:
-        return [(0, total)]
-    middles = count - 2
-    remaining = total - middles
-    if remaining < 0:
-        return None
-    first = remaining // 2
-    last = remaining - first
-    parts = [(0, first)]
-    cursor = first
-    for _ in range(middles):
-        parts.append((cursor, cursor + 1))
-        cursor += 1
-    parts.append((cursor, cursor + last))
-    return parts
-
-
-def pack(
-    kind: int,
-    hidden: int,
-    vocab: int,
-    layers: int,
-    heads: int,
-    kv: int,
-    dim: int,
-    ff: int,
-    values: list[float],
-    rms: float,
-    rope: float,
-) -> bytes:
-    raw = bytearray()
-    for value in values:
-        raw.extend(struct.pack(">e", value))
-    return header(kind, hidden, vocab, layers, heads, kv, dim, ff, len(raw), rms, rope) + raw
-
-
-def complete(
-    hidden: int,
-    vocab: int,
-    layers: int,
-    heads: int,
-    kv: int,
-    dim: int,
-    ff: int,
-    seed: int,
-) -> bytes:
-    count = embed_octets(vocab, hidden) + layers * layer_octets(hidden, kv, dim, ff) + head_octets(vocab, hidden)
-    count //= 2
-    return pack(KIND_COMPLETE, hidden, vocab, layers, heads, kv, dim, ff, list(rng(count, seed)), RMS, ROPE)
-
-
 def rng(count: int, seed: int, scale: float = 1.0) -> np.ndarray:
     state = seed & 0xFFFFFFFF
     values = np.empty(count, dtype=np.float32)
@@ -302,24 +218,9 @@ def apply(
     position: int,
     span: int,
 ) -> tuple[str, int | bytes] | None:
-    meta = held.meta
-    if meta.get("code", CODE) == CODE_MODEL:
-        return apply_model(held, width, index, count, token, carry, position, span)
-    ends = _ends(meta, width, index, count, position, span)
-    if ends is None:
+    if held.meta.get("code") != CODE_MODEL:
         return None
-    first, last = ends
-    window = _window(meta, index, count)
-    if window is None:
-        return None
-    begin, end = window
-    if len(held.state) < state_octets(end - begin, span, meta["kv"], meta["dim"]):
-        return None
-    vector = _input(held, first, last, token, carry, width, {KIND_COMPLETE, KIND_EMBED})
-    if vector is None:
-        return None
-    vector = _stack(held, vector, position, span, begin, end)
-    return _token(held, vector) if last else ("carry", dump(vector))
+    return apply_model(held, width, index, count, token, carry, position, span)
 
 
 def _ends(
@@ -416,47 +317,9 @@ def _argmax(held: Held, vector: np.ndarray, offset: int) -> int | None:
     return best_i
 
 
-def _window(meta: dict[str, Any], index: int, count: int) -> tuple[int, int] | None:
-    if meta["kind"] != KIND_COMPLETE or count == 1:
-        return (0, meta["layers"])
-    parts = split_layers(meta["layers"], count)
-    if parts is None:
-        return None
-    return parts[index]
-
-
-def _token(held: Held, vector: np.ndarray) -> tuple[str, int] | None:
-    if held.meta["kind"] not in {KIND_COMPLETE, KIND_HEAD}:
-        return None
-    out = _leave(held, vector)
-    if out is None:
-        return None
-    return ("token", out)
-
-
 def _embed(held: Held, token: int) -> np.ndarray:
     hidden = held.meta["hidden"]
     return held.floats(HEADER + token * hidden * 2, hidden)
-
-
-def _layer_base(meta: dict[str, Any], layer: int) -> int:
-    size = layer_octets(meta["hidden"], meta["kv"], meta["dim"], meta["ff"])
-    if meta["kind"] in {KIND_COMPLETE, KIND_EMBED}:
-        return HEADER + embed_octets(meta["vocab"], meta["hidden"]) + layer * size
-    return HEADER + layer * size
-
-
-def _stack(
-    held: Held,
-    vector: np.ndarray,
-    position: int,
-    span: int,
-    begin: int,
-    end: int,
-) -> np.ndarray:
-    for index, layer in enumerate(range(begin, end)):
-        vector = _block(held, vector, _layer(held, layer), index, position, span)
-    return vector
 
 
 def _maps(held: Held, cursor: int, specs: list[tuple]) -> tuple[tuple[np.ndarray, ...], int]:
@@ -465,35 +328,6 @@ def _maps(held: Held, cursor: int, specs: list[tuple]) -> tuple[tuple[np.ndarray
         data, cursor = _take(held, cursor, spec[0], spec[1] if len(spec) > 1 else None)
         items.append(data)
     return tuple(items), cursor
-
-
-def _layer(held: Held, layer: int) -> tuple[np.ndarray, ...]:
-    meta = held.meta
-    hidden = meta["hidden"]
-    kv_dim = meta["kv"] * meta["dim"]
-    ff = meta["ff"]
-    (rms_attn, wq, wk, wv, wo, rms_ff, w1, w2, w3), _ = _maps(
-        held,
-        _layer_base(meta, layer),
-        [
-            (hidden,),
-            (hidden * hidden, (hidden, hidden)),
-            (hidden * kv_dim, (kv_dim, hidden)),
-            (hidden * kv_dim, (kv_dim, hidden)),
-            (hidden * hidden, (hidden, hidden)),
-            (hidden,),
-            (hidden * ff, (ff, hidden)),
-            (ff * hidden, (hidden, ff)),
-            (hidden * ff, (ff, hidden)),
-        ],
-    )
-    return wq, wk, wv, wo, rms_attn, rms_ff, w1, w2, w3
-
-
-def _leave(held: Held, vector: np.ndarray) -> int | None:
-    meta = held.meta
-    offset = HEADER + meta["weights"] - head_octets(meta["vocab"], meta["hidden"])
-    return _argmax(held, vector, offset)
 
 
 def _floats(data: bytearray | bytes, offset: int, count: int) -> np.ndarray:

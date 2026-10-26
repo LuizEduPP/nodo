@@ -17,16 +17,13 @@ K = 8
 
 SLICE_MAGIC = b"nodo/s"
 VOCAB_MAGIC = b"nodo/v"
-CODE = 1
 CODE_MODEL = 2
 CODE_GREEDY = 1
 CODE_BPE = 2
-KIND_COMPLETE = 0
 KIND_EMBED = 1
-KIND_STACK = 2
 KIND_HEAD = 3
 KIND_BANK = 4
-KINDS = {KIND_COMPLETE, KIND_EMBED, KIND_STACK, KIND_HEAD, KIND_BANK}
+KINDS = {KIND_EMBED, KIND_HEAD, KIND_BANK}
 HEADER = 52
 HEAD_CHUNK = 4096
 VOCABULARY = "vocabulary"
@@ -42,18 +39,6 @@ RMS = 1e-6
 ROPE = 10000.0
 EOS = 0
 SCALE = 0.02
-
-LAYER = (
-    ("input_layernorm.weight", "hidden"),
-    ("self_attn.q_proj.weight", "hh"),
-    ("self_attn.k_proj.weight", "kh"),
-    ("self_attn.v_proj.weight", "kh"),
-    ("self_attn.o_proj.weight", "hh"),
-    ("post_attention_layernorm.weight", "hidden"),
-    ("mlp.gate_proj.weight", "fh"),
-    ("mlp.down_proj.weight", "hf"),
-    ("mlp.up_proj.weight", "fh"),
-)
 
 TYPES = (
     "association-open",

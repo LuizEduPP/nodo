@@ -2,7 +2,7 @@
 
 # Model
 
-The native model is `CODE_MODEL = 2` under magic `nodo/s`. It is not Llama. `join()` creates and applies only this code.
+The model is `CODE_MODEL = 2` under magic `nodo/s`. `join()` creates and applies only this code.
 
 Weights stay on the machine that wrote them. That machine may be on another network in another country. Inference is a walk of commitments across the current accepted set. The opener sends tokens and carries; each holder reads its local file. Adding a site adds a bank, not a copy of embed or head.
 
@@ -125,14 +125,14 @@ A holder that does not have the file locally (`_artifact` / `_file_path`) does n
 | offset | size | field |
 | --- | --- | --- |
 | 0 | 6 | `nodo/s` |
-| 6 | 1 | `code` (`1` Llama, `2` native) |
+| 6 | 1 | `code` (`2` only) |
 | 7 | 1 | `kind` |
 | 8 | 4×7 | `hidden, vocab, layers, heads, kv, dim, ff` (u32be) |
 | 36 | 4 | `rms` f32be |
 | 40 | 4 | `rope` f32be |
 | 44 | 8 | `weights` octet count (u64be) |
 
-`inspect` rejects `heads * dim != hidden`, `heads % kv != 0`, non-positive rms/rope, and `CODE=1` with `KIND_BANK`.
+`inspect` rejects any `code` other than `2`, `heads * dim != hidden`, `heads % kv != 0`, and non-positive rms/rope.
 
 Weights after the header are f16 big-endian.
 
@@ -153,11 +153,5 @@ count × (key[HIDDEN] f16be || value[HIDDEN] f16be)
 ### Head payload
 
 `layers = 1`. Maps in apply order (`_model_maps`): four `HIDDEN × HIDDEN` (Q, K, V, O), two `HIDDEN` (norms), three FF maps (`FF × HIDDEN`, `HIDDEN × FF`, `FF × HIDDEN`). After those, a `HIDDEN` skip and the `VOCAB × HIDDEN` projection used by `_argmax`.
-
-## Llama (`CODE = 1`)
-
-`slice.apply` still runs complete / embed / stack / head for `CODE=1` (Llama layout, `LAYER` names in `domain.py`). `nodo.pack` writes that format from a local checkpoint when `NODO_MODELS` points at one.
-
-`join()` does not call `pack`, does not set `CODE=1` on publication, and `_local` only accepts `CODE_MODEL`. A leftover Llama tree under `publication/` is ignored for the native declaration.
 
 [nodo](index.md) · [Flow](flow.md) · [Network](network.md) · **Model** · [Session](session.md) · [Protocol](protocol.md)

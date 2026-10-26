@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from nodo.composition import listing_id
-from nodo.domain import CARRY, KIND_COMPLETE, VOCABULARY
+from nodo.domain import CARRY, VOCABULARY
 from nodo.slice import Held, apply as apply_role, inspect, inspect_file
 
 
@@ -15,7 +15,7 @@ def occupy(path: Path, reservation: int) -> Held | None:
 
 def occupy_octets(data: bytes, reservation: int) -> Held | None:
     meta = inspect(data)
-    if meta is None or meta["kind"] == KIND_COMPLETE:
+    if meta is None:
         return None
     return _hold(meta, reservation, data)
 

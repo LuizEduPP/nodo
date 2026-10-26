@@ -13,7 +13,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
 
 from nodo.artifact import append_carry, apply_role, occupy, read_carry, store_path
-from nodo.domain import Cause, EOS, KIND_COMPLETE, NOTICE_WAIT, PREFIX, RECORD_TYPES, SIGNED, VERSION, VOCABULARY
+from nodo.domain import Cause, EOS, NOTICE_WAIT, PREFIX, RECORD_TYPES, SIGNED, VERSION, VOCABULARY
 from nodo.slice import Held, inspect_file
 from nodo.association import (
     AssociationError,
@@ -1343,7 +1343,7 @@ class Participant:
             meta = inspect_file(path)
             if meta is None:
                 return False
-            if meta["kind"] != KIND_COMPLETE and hashlib.sha256(path.read_bytes()).digest() != item["digest"]:
+            if hashlib.sha256(path.read_bytes()).digest() != item["digest"]:
                 return False
         held = occupy(path, reservation)
         if held is None:
