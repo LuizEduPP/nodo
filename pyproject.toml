@@ -1,0 +1,24 @@
+[project]
+name = "nodo"
+version = "1"
+description = "NODO collective inference protocol nodo/1"
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [{ name = "Luiz Eduardo", email = "LuizEduPP@users.noreply.github.com" }]
+requires-python = ">=3.14"
+dependencies = ["cryptography", "numpy"]
+
+[project.urls]
+Homepage = "https://github.com/LuizEduPP/nodo"
+Repository = "https://github.com/LuizEduPP/nodo"
+Documentation = "https://github.com/LuizEduPP/nodo/tree/main/docs"
+
+[project.scripts]
+nodo = "nodo.participant:main"
+
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]

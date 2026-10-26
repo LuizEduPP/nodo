@@ -1,0 +1,8 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+models/
+.tmp-run/
+build/
+uv.lock

@@ -1,0 +1,15 @@
+services:
+  nodo:
+    build: .
+    command: ["python", "-m", "nodo"]
+    ports:
+      - "9400:9400/tcp"
+      - "9400:9400/udp"
+    volumes:
+      - nodo:/var/lib/nodo
+    environment:
+      XDG_DATA_HOME: /var/lib
+    restart: unless-stopped
+
+volumes:
+  nodo:
