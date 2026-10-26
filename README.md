@@ -1,5 +1,7 @@
 # nodo
 
+![nodo](docs/nodo.jpg)
+
 **This repository is in test.** The protocol, the store, and the mesh are unfinished. Do not run this as production. Everyone can help the system and this repository move forward. Everyone who contributes gets credit.
 
 # The model lives on the machines. Not in one place.
