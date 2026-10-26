@@ -55,6 +55,10 @@ Everyone can contribute. Code, docs, issues, reviews, and machines on other netw
 
 [Luiz Eduardo](https://github.com/LuizEduPP) started the repository. Contributors keep their own credit.
 
+## Security
+
+Do not open a public issue for a vulnerability. See [SECURITY.md](SECURITY.md).
+
 ## License
 
 MIT. Copy it, run it, fork it. Keep the copyright notice. See [LICENSE](LICENSE).
