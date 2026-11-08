@@ -20,20 +20,20 @@ Fixed in `domain.py` and written into every native slice header:
 | `RMS` | `1e-6` | RMSNorm epsilon |
 | `ROPE` | `10000` | RoPE base |
 | `EOS` | 0 | stop token |
-| `SCALE` | `0.02` | init scale for `rng` |
+| `SCALE` | `0.02` | std dev for Gaussian weight init |
 | `width` | `HIDDEN * 2` = 512 | carry on the wire (f16be) |
 
 `span` and `bound` are not architectural constants. They are computed from the host budget (`fit_span`). For this architecture the KV reservation per position is 1024 bytes, so `span = (budget - 4) // 1024`. `bound` equals `span` on the publication `join()` writes. `span >= bound` is required by the capability codec.
 
 ## Vocabulary
 
-Magic `nodo/v`. `join()` writes `bytes_vocab()`:
+Magic `nodo/v`. `join()` writes `train_bpe()`:
 
 - code `CODE_BPE = 2`
-- 256 pieces: GPT-2-style byte-to-char maps, each stored as UTF-8
-- no merges
+- 256 base pieces: GPT-2-style byte-to-char maps, each stored as UTF-8
+- merges trained on `_DEFAULT_CORPUS` (nodo-domain phrases)
 
-`encode` therefore maps each input byte to one token. `decode` concatenates pieces and reverses the byte map. The opener always calls `bytes_vocab()` in memory; it does not read a peer's `vocabulary` file for generation.
+`encode` applies BPE merges to the request, then maps each resulting symbol to a piece index. `decode` concatenates pieces and reverses the byte map. The opener reads the vocabulary from the store (the `vocabulary` file written by `join()`), falling back to `bytes_vocab()` if absent.
 
 Token `0` is EOS.
 

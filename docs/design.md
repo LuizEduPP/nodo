@@ -116,8 +116,8 @@ These are documented here rather than silently absent.
 - **NAT traversal.** `convey` needs a hop that already has a route. Two NATs with no reachable hop cannot associate.
 - **IPv6.** `placement` and `Mesh` are IPv4-only.
 - **Two nodes on one host.** A second `nodo` on the same store is only a mailbox.
-- **A real model.** Every weight file is `rng(count, seed, scale)`. The model is not trained, and the output is not language.
-- **A real vocabulary.** `bytes_vocab()` maps each byte to one token. The output is a byte string, not language.
+- **A real model.** Weights use `np.random.default_rng(seed).normal(0.0, SCALE, count)` with `SCALE = 0.02`. The init is Gaussian, not a deterministic byte stream.
+- **A real vocabulary.** `join()` writes `train_bpe()` with merges from the nodo domain corpus. The opener reads the store vocabulary and falls back to `bytes_vocab()`.
 - **A real stop condition.** `EOS = 0` is a byte token, and generation stops at `bound`.
 - **Error messages.** `no model` is used for several different failures.
 - **Tests.** There are none.

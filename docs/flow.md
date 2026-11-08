@@ -110,7 +110,7 @@ sequenceDiagram
     participant B3 as bank site N
     participant Hd as head site
     U->>O: line
-    O->>O: bytes_vocab encode
+    O->>O: vocab encode
     O->>Emb: session-open
     O->>B1: session-open
     O->>B2: session-open

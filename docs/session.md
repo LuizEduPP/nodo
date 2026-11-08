@@ -13,7 +13,7 @@ A session is one generation request walking one complete composition. The **open
 1. Abandons any current session (`session-close` to its holders).
 2. Rejects an empty request (`open_allowed`).
 3. Picks the first entry of `View.complete()` whose merged declaration is visible (`_pick`). None → `no model`.
-4. Encodes with `bytes_vocab()`. Failure, or `len(prompt) + bound > span` → `no model`.
+4. Reads the store vocabulary for the composition, falling back to `bytes_vocab()`. Encodes the request. Failure, or `len(prompt) + bound > span` → `no model`.
 5. Allocates a session id (`uuid7`).
 6. Sends `session-open` to every distinct holder (`_open_peers`). A missing association to a remote holder → `no model`.
 7. Sends the first `step-in`.

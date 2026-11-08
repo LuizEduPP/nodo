@@ -76,7 +76,7 @@ ciphertext = ChaCha20-Poly1305(send_key, nonce=4×0||seq, aad=nodo/1||seq, item)
 - **A bank grows without bound.** `append_bank` appends to a file on that disk. There is no eviction, no size cap, and no way to remove an old pair.
 - **The view is in memory.** `Participant.__init__` rebuilds `assocs` and `View` from nothing. A restart is a new mesh.
 - **`no model` is a catch-all.** It is printed for several different failures, including a dead bind. See [Roadmap](roadmap.md#errors-that-say-what-failed).
-- **`rng` is deterministic.** `rng(count, seed, scale)` is a linear congruential generator. Two sites with the same `seed` produce the same weights.
+- **Weights are real random init.** `np.random.default_rng(seed).normal(0.0, SCALE, count)` with `SCALE = 0.02`. The same seed produces reproducible weights, but the init is Gaussian, not a byte stream.
 
 ## Configuration
 

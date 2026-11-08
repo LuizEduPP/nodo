@@ -4,7 +4,7 @@
 
 nodo is a mesh participant. The same program runs on any number of machines, on different networks, in different places. Together they are one inference model. There is no site file and no machine cap. The protocol name is `nodo/1`. The product is the `nodo` command (`python -m nodo`), which calls `join()` and runs a `Participant`.
 
-There is no product JSON configuration. Constants live in `src/nodo/domain.py`. Python `>= 3.14`. Dependencies: `cryptography`, `numpy`.
+There is no product JSON configuration. Constants live in `src/nodo/domain.py`. Python `>= 3.10`. Dependencies: `cryptography`, `numpy`.
 
 ## What it does
 
@@ -80,13 +80,13 @@ Every `join()` publication uses the same capability id: UUID version 7 derived f
 ## What happens on a prompt
 
 1. The opener takes the first complete composition (`View.complete`).
-2. It encodes the request with `bytes_vocab()` (256 byte tokens, BPE code, no merges).
+2. It encodes the request with the store vocabulary (`train_bpe` with merges from the nodo domain corpus, falling back to `bytes_vocab()`).
 3. It opens a session (`session-open` with those commitments) and sends `step-in` to the embed holder.
 4. Embed looks up the token row and returns a 512-byte carry (`HIDDEN` floats, f16 big-endian).
 5. Each bank attends the carry against its stored pairs, **appends** the carry as a new pair, and forwards a carry.
 6. Head runs one attention+FF block and returns `step-out` with an argmax token.
 7. After the prompt is consumed, generated tokens are fed back as the next `step-in`. Stop at `EOS=0` or when `generated` reaches `bound`.
-8. The opener decodes the generated tokens as UTF-8 (dropping a trailing EOS) and prints one line.
+8. The opener decodes the generated tokens as UTF-8 (dropping a trailing EOS) and prints one line. Stop at `EOS=0` or when `generated` reaches `bound`.
 
 Details: [Session](session.md).
 

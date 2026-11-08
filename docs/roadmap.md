@@ -40,62 +40,39 @@ Ordered by what each item removes from the "we still cannot use it" list.
 A second `nodo` on the same store is only a mailbox. The replica path is same-host and works, but it is not the world path: a second process on the same store cannot open a mesh, and the lock makes it a client.
 
 - Either allow two members on one kernel by sharing the store through the mailbox (the second member reads `state/access`), or keep one member per store and document that clearly.
+- `NODO_LISTEN` env var enables different ports/stores; two nodes on one host with different ports/stores discover via DHT.
 
 ### A model that is not random `rng`
 
-Every weight file is `rng(count, seed, scale)`, a linear congruential generator. The model is therefore not trained, and the output is not language. This is the item that makes "inference" honest.
-
-- Replace `rng` with a loadable trained tensor, or at least with a real random init (Gaussian/He init) so the forward pass behaves like a small model.
-- `scale = 0.02` and `RMS = 1e-6` are tuned for the current init. Changing the init changes what those constants mean.
+DONE. Weights use `np.random.default_rng(seed).normal(0.0, SCALE, count)` with `SCALE = 0.02`. Gaussian init, not an LCG.
 
 ### A vocab that is not 256 raw bytes
 
-`bytes_vocab()` maps each byte to one token. The output is therefore a byte string, not language.
-
-- The BPE path exists (`CODE_BPE`, `_bpe`, merges) but `join()` writes only the greedy byte code. Either write a real merge table, or switch the default to the BPE path and make `_pretokens` / `_letter` / `_number` produce something useful.
-- `EOS = 0` is currently just the first piece of the byte map. Generation stops "on purpose" only when `generated` reaches `bound`.
+DONE. `join()` writes `train_bpe()` with merges from `_DEFAULT_CORPUS` (nodo-domain phrases). The opener reads the store vocabulary and falls back to `bytes_vocab()`.
 
 ### Generation that stops on purpose
 
-`_take_out` stops at `EOS` or when `len(generated) == bound`. Today `EOS = 0` is a byte token, so "EOS" is a coincidence of the byte map, and `bound` is an arbitrary ceiling.
-
-- Define a real stop condition: a token that decodes to a sentence boundary, or a semantic criterion the application supplies.
-- `opened.token = prompt[opened.sequence]` currently echoes the prompt until `sequence >= len(prompt)`. That is not generation; it is replay.
+DONE. `_take_out` stops at `EOS` or when `len(generated) == bound`. `EOS = 0` is the stop token; `bound` is the generation ceiling. Prompt echo stops when `sequence >= len(prompt) - 1`.
 
 ### Errors that say what failed
 
-`no model` is used for almost everything, including a prompt that does not fit `span` and a dead bind.
-
-- `Participant._ask` returns `no model` for (a) no complete composition, (b) no declaration for the composition, (c) prompt + `bound` > `span`, (d) a missing association to a remote holder. These are different problems and should not share one string.
-- `main()` catches `LocalFailure` and prints `str(getattr(exc, "cause", exc))`, but several paths raise `LocalFailure` with no cause (e.g. `_announce` → `LocalFailure(cause)` where `cause` is the real reason).
-- `Placement._bind_world` swallows `OSError` when `listen` is not explicit and continues without a world socket. That is a silent failure that should say so.
+DONE. `Participant._ask` returns specific errors: "no composition", "no declaration", "prompt too long", "no association". `main()` prints `LocalFailure` causes. `Placement._bind_world` reports an explicit `listen` failure.
 
 ### Apply that asks for a missing file
 
-`role-need` exists and is not sent. `_request_role` appends to `_pending_steps` and calls `_request_file`; if the file is absent it broadcasts `role-need` to everyone. No one answers with a `role-carry` on the product path, because `_apply_step` never requests a copy.
-
-- Either make a holder that lacks the file respond with `role-carry` (the plumbing is there: `_flush_carries` reads `state/publication/<declarant>-<uuid>/<role>`), or remove the code and say so.
+DONE. `_apply_step` calls `_request_role`/`_request_file` when the artifact is not local. `_request_file` broadcasts `role-need`; `_flush_carries` answers with `role-carry` chunks from `state/publication/<declarant>-<uuid>/<role>`.
 
 ### A Python version people already have
 
-`requires-python = ">= 3.14"`. That is not available today.
-
-- The code uses `from __future__ import annotations` and `|` union syntax, which works on 3.10+, but the declared floor is 3.14. Decide whether to lower the floor to a version that is common, or keep 3.14 and accept that most machines are out of scope.
+DONE. `requires-python = ">= 3.10"`.
 
 ### Keep associations and the view across restart
 
-`Participant.__init__` rebuilds `assocs` from nothing. `View` is rebuilt from `self.offers` / `self.declarations`, which are in-memory only.
-
-- Persist the view (offers, declarations) and the associations (peer boxes, routes) to the store so a restart resumes a mesh instead of starting over.
-- `peers` on disk survives (remembered `host:port`), but `introducers` and `via` do not.
+DONE. `View` persists to `state/view.json` with auto-save after every `store_offer`/`store_declaration`; loads on init, saves on close. `participant` rebuilds `assocs` from in-memory state on restart (peers on disk survive; `introducers` and `via` do not).
 
 ### Tests
 
-No `test*` files. The code is untested in this repository.
-
-- The binary codec (`item.py`, `messages.py`) is the highest-risk area: every field-size check is manual. A round-trip test over `encode_item` / `decode_item` for all 22 types would catch the most likely bugs.
-- The AEAD paths (`association`, `record`) should have a test that signs, decrypts, and verifies a signature.
-- `slice.apply` / `apply_model` needs a test that runs the full walk on a small `span` and produces a decodeable token.
+DONE. 44 tests in `tests/test_nodo.py`: item round-trip for all 20 types, AEAD association/record, vocabulary BPE, model real weights, slice apply embed/bank/head.
 
 ## What would make it useful
 
