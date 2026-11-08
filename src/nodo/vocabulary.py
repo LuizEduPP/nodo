@@ -297,19 +297,6 @@ def _pair_count(symbols: list[bytes]) -> dict[tuple[bytes, bytes], int]:
 
 
 _DEFAULT_CORPUS = [
-    "the quick brown fox jumps over the lazy dog",
-    "the quick brown fox jumps over the lazy dog",
-    "a quick brown fox jumps over the lazy dog",
-    "the quick brown fox jumps over the lazy dog",
-    "jumps over the lazy dog",
-    "the lazy dog sleeps",
-    "the fox is quick",
-    "the dog is lazy",
-    "hello world",
-    "hello world",
-    "hello world",
-    "foo bar baz",
-    "foo bar baz",
     "nodo mesh protocol",
     "nodo mesh protocol",
     "collective inference",
@@ -366,8 +353,6 @@ _DEFAULT_CORPUS = [
     "error message no model",
     "persistent view restart",
     "persistent view restart",
-    "test encode decode",
-    "test encode decode",
 ]
 
 
