@@ -1,4 +1,4 @@
-[nodo](index.md) · [Flow](flow.md) · [Network](network.md) · [Model](model.md) · [Session](session.md) · **Protocol**
+[nodo](index.md) · [Flow](flow.md) · [Network](network.md) · [Model](model.md) · [Session](session.md) · [Protocol](protocol.md) · [Roadmap](roadmap.md) · [Design](design.md) · [Security](security.md) · **Protocol**
 
 # Protocol
 
@@ -59,8 +59,8 @@ Integers are unsigned big-endian. Text is `u16` length + UTF-8 (length ≥ 1). B
 
 **Offer body** after the common head (`participant`, `condition` ∈ `accepted|pause|leave`, `commitments` of `{id 16, reservation u64}`):
 
-- CPU: class `cpu`, `ram_host` u64, `ram_limit` u64
-- GPU: class `gpu`, `vram_host` u64, `vram_limit` u64, optional `vram_device` (flag + text)
+- CPU: classes `["cpu"]`, `ram_host` u64, `ram_limit` u64
+- GPU: classes `["gpu"]`, `vram_host` u64, `vram_limit` u64, optional `vram_device` (flag + text)
 
 **Role** in a capability: `name` text, `reservation` u64 ≥ 1, optional `class` ∈ `cpu|gpu` (flag + enum).
 

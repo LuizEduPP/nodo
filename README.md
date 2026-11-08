@@ -45,7 +45,7 @@ Listens on TCP and UDP **9400**. Store: `$XDG_DATA_HOME/nodo`, `%LOCALAPPDATA%/n
 
 ## Docs
 
-[Overview](docs/index.md) · [Flow](docs/flow.md) · [Network](docs/network.md) · [Model](docs/model.md) · [Session](docs/session.md) · [Protocol](docs/protocol.md)
+[Overview](docs/index.md) · [Flow](docs/flow.md) · [Network](docs/network.md) · [Model](docs/model.md) · [Session](docs/session.md) · [Protocol](docs/protocol.md) · [Roadmap](docs/roadmap.md) · [Design](docs/design.md) · [Security](docs/security.md)
 
 ## Contribute
 

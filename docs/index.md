@@ -1,4 +1,4 @@
-**nodo** · [Flow](flow.md) · [Network](network.md) · [Model](model.md) · [Session](session.md) · [Protocol](protocol.md)
+**nodo** · [Flow](flow.md) · [Network](network.md) · [Model](model.md) · [Session](session.md) · [Protocol](protocol.md) · [Roadmap](roadmap.md) · [Design](design.md) · **Security**
 
 # nodo
 
@@ -98,6 +98,9 @@ Details: [Session](session.md).
 4. [Model](model.md) — parts, composition, apply, on-disk layout.
 5. [Session](session.md) — opener/holder walk, bank growth, suspend.
 6. [Protocol](protocol.md) — binary items, signatures, session table, rejection.
+7. [Roadmap](roadmap.md) — what is done, what is next.
+8. [Design](design.md) — architectural decisions and rationale.
+9. [Security](security.md) — authentication, encryption, and known weaknesses.
 
 ## Source map
 
@@ -118,4 +121,4 @@ Details: [Session](session.md).
 | `access` | lock and mailbox |
 | `measure` | RAM/VRAM and `cap` |
 
-**nodo** · [Flow](flow.md) · [Network](network.md) · [Model](model.md) · [Session](session.md) · [Protocol](protocol.md)
+**nodo** · [Flow](flow.md) · [Network](network.md) · [Model](model.md) · [Session](session.md) · [Protocol](protocol.md) · [Roadmap](roadmap.md) · [Design](design.md) · [Security](security.md)

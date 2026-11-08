@@ -1,4 +1,4 @@
-[nodo](index.md) · [Flow](flow.md) · **Network** · [Model](model.md) · [Session](session.md) · [Protocol](protocol.md)
+[nodo](index.md) · [Flow](flow.md) · [Network](network.md) · [Model](model.md) · [Session](session.md) · [Protocol](protocol.md) · [Roadmap](roadmap.md) · [Design](design.md) · [Security](security.md) · **Network**
 
 # Network
 
@@ -41,7 +41,7 @@ If bind of 9400 fails and no explicit port was requested, the process continues 
 
 ## DHT
 
-Public discovery is BitTorrent Mainline: KRPC, bencode, UDP on the same port as TCP. That network is already global. nodo does not run a private tracker or a bootstrap list of members. Doors are only the first hop into Mainline; after that, `get_peers` walks whatever nodes answer for `HASH`.
+Public discovery is BitTorrent Mainline: KRPC, bencode, UDP. nodo runs the DHT on the **same port as TCP** (`LISTEN=9400`) rather than the Mainline default UDP `6881`. That is an intentional design choice: one socket for everything simplifies NAT traversal and firewall rules. It is a deviation from the BEP 5 default, not a bug. Doors are only the first hop into Mainline; after that, `get_peers` walks whatever nodes answer for `HASH`.
 
 | constant | value |
 | --- | --- |
@@ -49,6 +49,7 @@ Public discovery is BitTorrent Mainline: KRPC, bencode, UDP on the same port as 
 | node id | 20 random bytes per process |
 | `ALPHA` | 3 outstanding `get_peers` at a time |
 | `K` | 8 compact nodes / values |
+| DHT listen port | same as TCP (`LISTEN=9400`); Mainline default is UDP `6881` |
 | doors | `dht.libtorrent.org:25401`, `dht.transmissionbt.com:6881` |
 
 Queries used:
@@ -150,6 +151,10 @@ seq (8 bytes, big-endian)
      plaintext = item [+ 64-byte signature if SIGNED]
    )
 ```
+
+The nonce is 96 bits (12 bytes), the IETF ChaCha20-Poly1305 size. Its layout is `4×0 || seq`: four zero bytes followed by the 8-byte sequence number. The sequence number is unique per direction and per association, so nonce+key is never reused — a requirement of ChaCha20-Poly1305.
+
+The handshake uses a different nonce: `seal_handshake` encrypts with `ChaCha20-Poly1305(key, nonce=12×0, aad=nodo/1)`. The nonce is twelve zero bytes. Because the key is derived from a freshly generated ephemeral X25519 key for each handshake, key+nonces is unique per handshake and replay is not possible. The trade-off is that the handshake does not rotate its nonce across retries; a retransmitted `association-open` with the same ephemeral key would decrypt with the same key and nonce. That is acceptable because each handshake generates a new ephemeral key.
 
 `recv_seq` must match exactly. Lower is replay (drop). Higher is a gap (end association). After a successful open, `recv_seq` increments by one.
 
