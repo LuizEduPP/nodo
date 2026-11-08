@@ -286,3 +286,132 @@ def _space(text: str, index: int) -> int | None:
     while index < len(text) and text[index] in "\r\n\t ":
         index += 1
     return index - start
+
+
+def _pair_count(symbols: list[bytes]) -> dict[tuple[bytes, bytes], int]:
+    counts: dict[tuple[bytes, bytes], int] = {}
+    for index in range(len(symbols) - 1):
+        pair = (symbols[index], symbols[index + 1])
+        counts[pair] = counts.get(pair, 0) + 1
+    return counts
+
+
+_DEFAULT_CORPUS = [
+    "the quick brown fox jumps over the lazy dog",
+    "the quick brown fox jumps over the lazy dog",
+    "a quick brown fox jumps over the lazy dog",
+    "the quick brown fox jumps over the lazy dog",
+    "jumps over the lazy dog",
+    "the lazy dog sleeps",
+    "the fox is quick",
+    "the dog is lazy",
+    "hello world",
+    "hello world",
+    "hello world",
+    "foo bar baz",
+    "foo bar baz",
+    "nodo mesh protocol",
+    "nodo mesh protocol",
+    "collective inference",
+    "collective inference",
+    "distributed model",
+    "distributed model",
+    "embed banks head",
+    "embed banks head",
+    "step in step out",
+    "step in step out",
+    "association record frame",
+    "association record frame",
+    "DHT Mainline Kademlia",
+    "DHT Mainline Kademlia",
+    "ChaCha20 Poly1305",
+    "ChaCha20 Poly1305",
+    "Ed25519 X25519",
+    "Ed25519 X25519",
+    "RoPE RMSNorm SiLU",
+    "RoPE RMSNorm SiLU",
+    "GQA attention heads",
+    "GQA attention heads",
+    "float16 float32",
+    "float16 float32",
+    "UUID v7 UUID v5",
+    "UUID v7 UUID v5",
+    "sha256 sha1",
+    "sha256 sha1",
+    "BitTorrent Mainline DHT",
+    "BitTorrent Mainline DHT",
+    "TCP UDP port 9400",
+    "TCP UDP port 9400",
+    "NAT traversal convey",
+    "NAT traversal convey",
+    "IPv4 IPv6 support",
+    "IPv4 IPv6 support",
+    "store lock access mailbox",
+    "store lock access mailbox",
+    "session open close suspend",
+    "session open close suspend",
+    "role need role carry",
+    "role need role carry",
+    "composition commitment",
+    "composition commitment",
+    "vocabulary BPE merges",
+    "vocabulary BPE merges",
+    "model weights bank",
+    "model weights bank",
+    "prompt token generation",
+    "prompt token generation",
+    "stop condition EOS bound",
+    "stop condition EOS bound",
+    "error message no model",
+    "error message no model",
+    "persistent view restart",
+    "persistent view restart",
+    "test encode decode",
+    "test encode decode",
+]
+
+
+def train_bpe(corpus: list[str] | None = None, num_merges: int = 256) -> Vocabulary:
+    if corpus is None:
+        corpus = _DEFAULT_CORPUS
+    pieces = [_BYTE_TO_CHAR[value].encode("utf-8") for value in range(256)]
+    if b" " not in pieces:
+        pieces.append(b" ")
+
+    tokenized: list[list[bytes]] = []
+    for text in corpus:
+        try:
+            encoded = text.encode("utf-8")
+        except UnicodeEncodeError:
+            continue
+        symbols = [_BYTE_TO_CHAR[value].encode("utf-8") for value in encoded]
+        tokenized.append(symbols)
+
+    merges: list[tuple[bytes, bytes]] = []
+    for _ in range(num_merges):
+        total_counts: dict[tuple[bytes, bytes], int] = {}
+        for symbols in tokenized:
+            counts = _pair_count(symbols)
+            for pair, count in counts.items():
+                total_counts[pair] = total_counts.get(pair, 0) + count
+        if not total_counts:
+            break
+        best_pair = max(total_counts, key=total_counts.get)
+        if total_counts[best_pair] < 2:
+            break
+        merged = best_pair[0] + best_pair[1]
+        merges.append(best_pair)
+        if merged not in pieces:
+            pieces.append(merged)
+        for symbols in tokenized:
+            nxt: list[bytes] = []
+            index = 0
+            while index < len(symbols):
+                if index + 1 < len(symbols) and symbols[index] == best_pair[0] and symbols[index + 1] == best_pair[1]:
+                    nxt.append(merged)
+                    index += 2
+                else:
+                    nxt.append(symbols[index])
+                    index += 1
+            symbols[:] = nxt
+    return Vocabulary(CODE_BPE, pieces, merges)

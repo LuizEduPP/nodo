@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import numpy as np
 from pathlib import Path
 from typing import Any
 
@@ -20,8 +21,8 @@ from nodo.domain import (
     SCALE,
     VOCAB,
 )
-from nodo.slice import bank_octets, dump, fit_span, header, inspect_file, reservation_of, rng
-from nodo.vocabulary import bytes_vocab
+from nodo.slice import bank_octets, dump, fit_span, header, inspect_file, reservation_of
+from nodo.vocabulary import train_bpe
 from nodo.vocabulary import write as write_vocab
 
 
@@ -34,7 +35,7 @@ def load(root: Path, participant: bytes, budget: int | None = None) -> dict[str,
 
 def create(root: Path, participant: bytes, budget: int | None = None) -> dict[str, Any]:
     budget = _ready(root, budget, True)
-    (root / "vocabulary").write_bytes(write_vocab(bytes_vocab()))
+    (root / "vocabulary").write_bytes(write_vocab(train_bpe()))
     path = _bank_path(root, participant)
     if not path.is_file():
         _write_bank(path, 0)
@@ -172,7 +173,8 @@ def _model_header(kind: int, layers: int, weights: int) -> bytes:
 
 
 def _write_weights(path: Path, kind: int, layers: int, count: int, seed: int) -> None:
-    values = rng(count, seed, SCALE)
+    rng = np.random.default_rng(seed)
+    values = rng.normal(0.0, SCALE, count).astype(np.float32)
     with path.open("wb") as out:
         out.write(_model_header(kind, layers, values.size * 2))
         out.write(dump(values))

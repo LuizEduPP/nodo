@@ -5,7 +5,7 @@ description = "NODO collective inference protocol nodo/1"
 readme = "README.md"
 license = { file = "LICENSE" }
 authors = [{ name = "Luiz Eduardo", email = "LuizEduPP@users.noreply.github.com" }]
-requires-python = ">=3.14"
+requires-python = ">=3.10"
 dependencies = ["cryptography", "numpy"]
 
 [project.urls]

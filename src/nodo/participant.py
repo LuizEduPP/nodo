@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import select
 import sys
 import time
@@ -11,6 +12,19 @@ from typing import Any
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
+
+
+def _env_listen() -> int | None:
+    raw = os.environ.get("NODO_LISTEN")
+    if raw is None:
+        return None
+    try:
+        value = int(raw)
+    except ValueError:
+        return None
+    if value < 1 or value > 65535:
+        return None
+    return value
 
 from nodo.artifact import append_carry, apply_role, occupy, read_carry, store_path
 from nodo.domain import Cause, EOS, NOTICE_WAIT, PREFIX, RECORD_TYPES, SIGNED, VERSION, VOCABULARY
@@ -40,7 +54,7 @@ from nodo.messages import (
 from nodo.placement import Placement, PlacementError, Route
 from nodo.record import open_record, seal
 from nodo.session import SessionError, open_allowed
-from nodo.vocabulary import bytes_vocab, decode, encode
+from nodo.vocabulary import bytes_vocab, decode, encode, read
 from nodo.view import View
 
 
@@ -114,6 +128,9 @@ class Participant:
         self.signed_presence: dict[bytes, bytes] = {}
         self.accepted_presence: dict[bytes, set[bytes]] = {}
         self.view = View()
+        view_path = str(self.config["state"] / "view.json")
+        self.view._set_save_path(view_path)
+        self.view.load(view_path)
         self.pending: dict[bytes, Pending] = {}
         self.assocs: dict[tuple[bytes, bytes], Assoc] = {}
         self.opened: Opened | None = None
@@ -130,7 +147,7 @@ class Participant:
         self._pending_ask: bytes | None = None
         self._pending_steps: list[tuple[dict[str, Any], bytes, int | None, bytes | None]] = []
         self.placement = Placement(
-            listen=config.get("listen"),
+            listen=config.get("listen") or _env_listen(),
             peers=tuple(config.get("peers") or ()),
             peers_path=config.get("peers_path"),
         )
@@ -311,15 +328,30 @@ class Participant:
             return False
         return True
 
-    def _convey_frame(self, subject: bytes, frame: bytes) -> bool:
+    def _convey_frame(
+        self,
+        subject: bytes,
+        frame: bytes,
+        visited: set[bytes] | None = None,
+        hops_left: int = 5,
+    ) -> bool:
+        if hops_left <= 0:
+            return False
         hops = self._hops(subject)
         sent = False
         for hop in hops:
+            if visited is not None and hop in visited:
+                continue
             assoc = self._assoc_for(hop)
             if assoc is None:
                 continue
             self._send_record(assoc, self._msg("convey", subject=subject, body=frame))
             sent = True
+            if visited is not None:
+                visited.add(hop)
+            hops_left -= 1
+            if hops_left <= 0:
+                break
         return sent
 
     def _msg(self, kind: str, **fields: Any) -> dict[str, Any]:
@@ -642,13 +674,15 @@ class Participant:
             self._apply_frame(body, None)
             return
         path = self.paths.get(subject)
-        if path is None:
-            self._rejection(peer, "association", assoc)
+        if path is not None:
+            try:
+                self.placement.place(path, body)
+            except PlacementError:
+                self._rejection(peer, "association", assoc)
             return
-        try:
-            self.placement.place(path, body)
-        except PlacementError:
-            self._rejection(peer, "association", assoc)
+        # No direct path: attempt NAT traversal by conveying through other hops.
+        visited = {peer}
+        self._convey_frame(subject, body, visited, hops_left=4)
 
     def _handle_record_body(self, body: bytes) -> None:
         for assoc in self._each():
@@ -823,6 +857,15 @@ class Participant:
             return None
         index = held["commitments"].index(match[0])
         if not self._artifact(held["declarant"], held["capability"], match[0]["role"], match[0]["reservation"]):
+            self._request_role(
+                held["declarant"],
+                held["capability"],
+                match[0]["role"],
+                message,
+                peer,
+                token,
+                carry,
+            )
             return None
         outcome = apply_role(
             self.occupied[(held["declarant"], held["capability"], match[0]["role"])],
@@ -922,6 +965,13 @@ class Participant:
         if opened.sequence >= len(prompt) - 1:
             opened.generated.append(message["token"])
         self._progress()
+        if opened.generated:
+            text = decode(opened.vocabulary, opened.generated)
+            if text is not None:
+                stripped = text.rstrip()
+                if len(stripped) >= 3 and stripped[-1] in ".!?":
+                    self._close_session()
+                    return None
         if opened.generated and (opened.generated[-1] == EOS or len(opened.generated) == opened.bound):
             self._close_session()
             return None
@@ -1313,6 +1363,8 @@ class Participant:
             dest = self._assoc_for(author)
             if dest is not None:
                 self._emit_step(dest, reply)
+            else:
+                self._emit_step(None, reply)
         if self._pending_ask is not None:
             request = self._pending_ask
             self._pending_ask = None
@@ -1403,16 +1455,18 @@ class Participant:
             return
         composition = self._pick()
         if composition is None:
-            self._no_model()
+            self.terminal_err.append("no composition")
             return
         declaration = self.view.declaration(composition["declarant"], composition["capability"])
         if declaration is None:
-            self._no_model()
+            self.terminal_err.append("no declaration")
             return
-        vocabulary = bytes_vocab()
+        vocabulary = self._vocabulary(composition["declarant"], composition["capability"])
+        if vocabulary is None:
+            vocabulary = bytes_vocab()
         prompt = encode(vocabulary, request)
         if prompt is None or len(prompt) + declaration["bound"] > declaration["span"]:
-            self._no_model()
+            self.terminal_err.append("prompt too long")
             return
         session = uuid.uuid7().bytes
         opened = Opened(
@@ -1433,7 +1487,7 @@ class Participant:
         if self.opened is None:
             return
         if any(self._assoc_for(item["participant"]) is None and item["participant"] != self.participant for item in composition["commitments"]):
-            self._no_model()
+            self.terminal_err.append("no association")
             self.opened = None
             return
         self._step_in()
@@ -1526,12 +1580,17 @@ class Participant:
         return bool(lines or errors)
 
     def _vocabulary(self, declarant: bytes, capability: bytes):
-        return bytes_vocab()
+        path = self.config["state"] / "vocabulary"
+        if path.is_file():
+            return read(path.read_bytes())
+        return None
 
     def close(self) -> None:
         self._release()
         unlock(self._lock)
         self._lock = None
+        if self.view._save_path is not None:
+            self.view.save(self.view._save_path)
         self.placement.close()
 
 

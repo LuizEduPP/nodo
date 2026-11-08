@@ -37,6 +37,11 @@ def _ip_host(host: str) -> bool:
         socket.inet_aton(host)
         return True
     except OSError:
+        pass
+    try:
+        socket.inet_pton(socket.AF_INET6, host)
+        return True
+    except OSError:
         return False
 
 
@@ -46,20 +51,13 @@ def _interface_ips() -> set[str]:
         names = socket.if_nameindex()
     except (AttributeError, OSError):
         return found
-    try:
-        import fcntl
-        import struct
-    except ImportError:
-        return found
     for _index, name in names:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         try:
-            packed = fcntl.ioctl(sock, 0x8915, struct.pack("256s", name.encode()[:15]))
-        except OSError:
+            for family in (socket.AF_INET6, socket.AF_INET):
+                for info in socket.getaddrinfo(name, None, family):
+                    found.add(str(info[4][0]))
+        except (OSError, socket.gaierror):
             continue
-        finally:
-            sock.close()
-        found.add(socket.inet_ntoa(packed[20:24]))
     return found
 
 
@@ -161,17 +159,23 @@ class Placement:
 
     def _bind_world(self, listen: int | None) -> None:
         port = listen if listen is not None else LISTEN
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        try:
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            sock.bind(("", port))
-            sock.listen()
-            sock.setblocking(False)
-            sock.getsockname()[1]
-        except OSError as exc:
-            sock.close()
+        sock = None
+        for family in (socket.AF_INET6, socket.AF_INET):
+            try:
+                sock = socket.socket(family, socket.SOCK_STREAM)
+                sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                sock.bind(("", port))
+                sock.listen()
+                sock.setblocking(False)
+                sock.getsockname()[1]
+                break
+            except OSError:
+                if sock is not None:
+                    sock.close()
+                sock = None
+        if sock is None:
             if listen is not None:
-                raise PlacementError("listen") from exc
+                raise PlacementError("listen")
             return
         self._listen = sock
 
@@ -366,8 +370,9 @@ class Placement:
             if host:
                 found.add(host)
         try:
-            for info in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):
-                found.add(str(info[4][0]))
+            for family in (socket.AF_INET6, socket.AF_INET):
+                for info in socket.getaddrinfo(socket.gethostname(), None, family):
+                    found.add(str(info[4][0]))
         except (OSError, socket.gaierror):
             pass
         found.update(_interface_ips())
@@ -388,10 +393,11 @@ class Placement:
             return [addr]
         found: list[tuple[str, int]] = []
         try:
-            for info in socket.getaddrinfo(addr[0], addr[1], socket.AF_INET, socket.SOCK_STREAM):
-                peer = (str(info[4][0]), int(info[4][1]))
-                if peer not in found:
-                    found.append(peer)
+            for family in (socket.AF_INET6, socket.AF_INET):
+                for info in socket.getaddrinfo(addr[0], addr[1], family, socket.SOCK_STREAM):
+                    peer = (str(info[4][0]), int(info[4][1]))
+                    if peer not in found:
+                        found.append(peer)
         except (OSError, socket.gaierror):
             found = [addr]
         if not found:
@@ -453,7 +459,8 @@ class Placement:
             return True
         targets = self._resolve(addr)
         dest = targets[0] if targets else addr
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        family = socket.AF_INET6 if ":" in dest[0] else socket.AF_INET
+        sock = socket.socket(family, socket.SOCK_STREAM)
         sock.setblocking(False)
         try:
             try:
