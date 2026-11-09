@@ -15,6 +15,7 @@ from nodo.domain import (
     KIND_EMBED,
     KIND_HEAD,
     KINDS,
+    MIN_SLICE_BUDGET,
     SLICE_MAGIC,
 )
 
@@ -188,10 +189,10 @@ def fit_span(meta: dict[str, Any], budget: int, ceiling: int) -> int | None:
         return None
     per = meta["layers"] * 2 * meta["kv"] * meta["dim"] * 2
     if per < 1:
-        return ceiling if budget >= 4 else None
-    if budget < 4 + per:
+        return ceiling if budget >= MIN_SLICE_BUDGET else None
+    if budget < MIN_SLICE_BUDGET + per:
         return None
-    span = min(ceiling, (budget - 4) // per)
+    span = min(ceiling, (budget - MIN_SLICE_BUDGET) // per)
     return span if span >= 1 else None
 
 

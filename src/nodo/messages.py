@@ -15,6 +15,9 @@ from nodo.domain import (
     SUSPENSION,
     VERSION,
     Cause,
+    KEY_LEN,
+    ID_LEN,
+    SIGNATURE_LEN,
 )
 from nodo.item import ItemError, decode_item, encode_item, fields_of
 
@@ -48,9 +51,9 @@ def decode_message(item: bytes, author: Ed25519PublicKey | None) -> dict[str, An
     if message["type"] in SIGNED:
         if author is None:
             raise MessageError("signature")
-        if len(rest) != 64:
+        if len(rest) != SIGNATURE_LEN:
             raise MessageError("item")
-        payload = item[: len(item) - 64]
+        payload = item[: len(item) - SIGNATURE_LEN]
         try:
             author.verify(rest, PREFIX + payload)
         except InvalidSignature as exc:
@@ -164,16 +167,16 @@ def _uint(value: Any, minimum: int = 0) -> None:
 
 
 _ID_SIZE = {
-    "participant": 32,
-    "eph": 32,
-    "box": 32,
-    "subject": 32,
-    "holder": 32,
-    "declarant": 32,
-    "id": 16,
-    "session": 16,
-    "commitment": 16,
-    "capability": 16,
+    "participant": KEY_LEN,
+    "eph": KEY_LEN,
+    "box": KEY_LEN,
+    "subject": KEY_LEN,
+    "holder": KEY_LEN,
+    "declarant": KEY_LEN,
+    "id": ID_LEN,
+    "session": ID_LEN,
+    "commitment": ID_LEN,
+    "capability": ID_LEN,
 }
 
 

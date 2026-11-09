@@ -6,7 +6,11 @@ from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey, X25519PublicKey
 from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
 
-from nodo.domain import PREFIX
+from nodo.domain import (
+    PREFIX,
+    KEY_LEN,
+    ID_LEN,
+)
 
 
 class AssociationError(Exception):
@@ -55,11 +59,11 @@ def seal_handshake(eph: X25519PrivateKey, peer_box: bytes, recipient: bytes, pla
 
 
 def open_handshake(box: X25519PrivateKey, recipient: bytes, body: bytes) -> bytes:
-    if len(body) < 32 + 16:
+    if len(body) < KEY_LEN + ID_LEN:
         raise AssociationError("short")
-    public = body[:32]
+    public = body[:KEY_LEN]
     key = handshake_key(box, public, recipient)
     try:
-        return ChaCha20Poly1305(key).decrypt(bytes(12), body[32:], PREFIX)
+        return ChaCha20Poly1305(key).decrypt(bytes(12), body[KEY_LEN:], PREFIX)
     except InvalidTag as exc:
         raise AssociationError("seal") from exc

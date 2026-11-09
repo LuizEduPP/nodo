@@ -11,6 +11,8 @@ from nodo.domain import (
     TYPE_CODE,
     VERSION,
     Cause,
+    KEY_LEN,
+    ID_LEN,
 )
 
 
@@ -242,9 +244,9 @@ def _put_list(items: list[Any], writer: Any) -> bytes:
     return _put_u16(len(items)) + b"".join(writer(item) for item in items)
 
 
-OFFER_COMMIT = (("id", 16), ("reservation", "u64"))
+OFFER_COMMIT = (("id", ID_LEN), ("reservation", "u64"))
 ROLE_HEAD = (("name", "text"), ("reservation", "u64"))
-COMMIT = (("id", 16), ("role", "text"), ("participant", 32), ("reservation", "u64"))
+COMMIT = (("id", ID_LEN), ("role", "text"), ("participant", KEY_LEN), ("reservation", "u64"))
 
 
 def _encode_offer_commitment(item: dict[str, Any]) -> bytes:
@@ -282,7 +284,7 @@ def _decode_commitment(data: bytes) -> tuple[dict[str, Any], bytes]:
 
 
 OFFER_HEAD = (
-    ("participant", 32),
+    ("participant", KEY_LEN),
     ("condition", ("enum", CONDITIONS)),
     ("commitments", ("list", _encode_offer_commitment, _decode_offer_commitment)),
 )
@@ -321,16 +323,16 @@ def _decode_offer(data: bytes) -> tuple[dict[str, Any], bytes]:
 
 
 LAYOUT: dict[str, tuple[tuple[str, Any], ...]] = {
-    "association-open": (("participant", 32), ("eph", 32), ("box", 32)),
-    "association-accept": (("participant", 32), ("eph", 32), ("box", 32)),
-    "association-close": (("participant", 32),),
-    "presence": (("participant", 32), ("box", 32)),
-    "introduction": (("participant", 32), ("subject", 32)),
-    "convey": (("participant", 32), ("subject", 32), ("body", "bin")),
-    "offer-withdrawal": (("participant", 32),),
+    "association-open": (("participant", KEY_LEN), ("eph", KEY_LEN), ("box", KEY_LEN)),
+    "association-accept": (("participant", KEY_LEN), ("eph", KEY_LEN), ("box", KEY_LEN)),
+    "association-close": (("participant", KEY_LEN),),
+    "presence": (("participant", KEY_LEN), ("box", KEY_LEN)),
+    "introduction": (("participant", KEY_LEN), ("subject", KEY_LEN)),
+    "convey": (("participant", KEY_LEN), ("subject", KEY_LEN), ("body", "bin")),
+    "offer-withdrawal": (("participant", KEY_LEN),),
     "capability": (
-        ("id", 16),
-        ("participant", 32),
+        ("id", ID_LEN),
+        ("participant", KEY_LEN),
         ("name", "text"),
         ("width", "u32"),
         ("bound", "u32"),
@@ -338,49 +340,49 @@ LAYOUT: dict[str, tuple[tuple[str, Any], ...]] = {
         ("roles", ("list", _encode_role, _decode_role)),
     ),
     "composition": (
-        ("declarant", 32),
-        ("capability", 16),
+        ("declarant", KEY_LEN),
+        ("capability", ID_LEN),
         ("complete", "bool"),
         ("commitments", ("list", _encode_commitment, _decode_commitment)),
     ),
     "session-open": (
-        ("id", 16),
-        ("participant", 32),
-        ("declarant", 32),
-        ("capability", 16),
+        ("id", ID_LEN),
+        ("participant", KEY_LEN),
+        ("declarant", KEY_LEN),
+        ("capability", ID_LEN),
         ("commitments", ("list", _encode_commitment, _decode_commitment)),
     ),
-    "session-progress": (("participant", 32), ("session", 16), ("sequence", "u64")),
-    "session-suspend": (("participant", 32), ("session", 16), ("cause", ("enum", SUSPENSION))),
-    "session-close": (("participant", 32), ("session", 16)),
+    "session-progress": (("participant", KEY_LEN), ("session", ID_LEN), ("sequence", "u64")),
+    "session-suspend": (("participant", KEY_LEN), ("session", ID_LEN), ("cause", ("enum", SUSPENSION))),
+    "session-close": (("participant", KEY_LEN), ("session", ID_LEN)),
     "rejection": (("cause", ("enum", REJECTION)),),
     "step-in": (
-        ("participant", 32),
-        ("session", 16),
-        ("commitment", 16),
+        ("participant", KEY_LEN),
+        ("session", ID_LEN),
+        ("commitment", ID_LEN),
         ("sequence", "u64"),
         ("token", "u32"),
     ),
     "step-carry": (
-        ("participant", 32),
-        ("session", 16),
-        ("commitment", 16),
+        ("participant", KEY_LEN),
+        ("session", ID_LEN),
+        ("commitment", ID_LEN),
         ("sequence", "u64"),
         ("body", "bin"),
     ),
-    "step-out": (("participant", 32), ("session", 16), ("sequence", "u64"), ("token", "u32")),
+    "step-out": (("participant", KEY_LEN), ("session", ID_LEN), ("sequence", "u64"), ("token", "u32")),
     "role-need": (
-        ("participant", 32),
-        ("holder", 32),
-        ("declarant", 32),
-        ("capability", 16),
+        ("participant", KEY_LEN),
+        ("holder", KEY_LEN),
+        ("declarant", KEY_LEN),
+        ("capability", ID_LEN),
         ("role", "text"),
     ),
     "role-carry": (
-        ("participant", 32),
-        ("holder", 32),
-        ("declarant", 32),
-        ("capability", 16),
+        ("participant", KEY_LEN),
+        ("holder", KEY_LEN),
+        ("declarant", KEY_LEN),
+        ("capability", ID_LEN),
         ("role", "text"),
         ("offset", "u64"),
         ("remain", "u64"),

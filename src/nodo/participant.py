@@ -27,7 +27,21 @@ def _env_listen() -> int | None:
     return value
 
 from nodo.artifact import append_carry, apply_role, occupy, read_carry, store_path
-from nodo.domain import Cause, EOS, NOTICE_WAIT, PREFIX, RECORD_TYPES, SIGNED, VERSION, VOCABULARY
+from nodo.domain import (
+    Cause,
+    CONVEY_HOPS,
+    EOS,
+    MAX_HOPS,
+    NOTICE_WAIT,
+    PREFIX,
+    RECORD_TYPES,
+    SIGNED,
+    VERSION,
+    VOCABULARY,
+    KEY_LEN,
+    ID_LEN,
+    SIGNATURE_LEN,
+)
 from nodo.slice import Held, inspect_file
 from nodo.association import (
     AssociationError,
@@ -333,7 +347,7 @@ class Participant:
         subject: bytes,
         frame: bytes,
         visited: set[bytes] | None = None,
-        hops_left: int = 5,
+        hops_left: int = MAX_HOPS,
     ) -> bool:
         if hops_left <= 0:
             return False
@@ -462,7 +476,7 @@ class Participant:
             return False
         kind = message["type"]
         if kind == "association-open":
-            if message["eph"] != body[:32]:
+            if message["eph"] != body[:KEY_LEN]:
                 return True
             self._on_open(message, route)
             return True
@@ -682,7 +696,7 @@ class Participant:
             return
         # No direct path: attempt NAT traversal by conveying through other hops.
         visited = {peer}
-        self._convey_frame(subject, body, visited, hops_left=4)
+        self._convey_frame(subject, body, visited, hops_left=CONVEY_HOPS)
 
     def _handle_record_body(self, body: bytes) -> None:
         for assoc in self._each():
@@ -722,7 +736,7 @@ class Participant:
             message, rest = decode_item(plaintext)
         except ItemError as exc:
             raise MessageError(exc.cause) from exc
-        if rest and len(rest) != 64:
+        if rest and len(rest) != SIGNATURE_LEN:
             raise MessageError("frame")
         if message["type"] == "presence":
             author = message.get("participant")

@@ -217,3 +217,11 @@ def capability() -> bytes:
 
 
 HASH = infohash()
+
+KEY_LEN = 32
+ID_LEN = 16
+SIGNATURE_LEN = 64
+
+MAX_HOPS = 5
+MIN_SLICE_BUDGET = 4
+CONVEY_HOPS = 4
